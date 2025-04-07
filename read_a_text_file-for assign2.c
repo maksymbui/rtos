@@ -7,7 +7,7 @@ int main(int argc, char** argv) {
     FILE *fptr;
     char file_name[100];
     int sig;
-   char check[1000]="end_header";
+    char check[10]="end_header";
 
 /* Verify the correct number of arguments were passed in */
 	if (argc != 2) {
@@ -28,11 +28,21 @@ int main(int argc, char** argv) {
    
    sig=0;
 
-   while(fgets(c, sizeof(c), fptr) != NULL) {
-	     
-	fputs(c, stdout);
-	
-     }
+   while (fgets(c, sizeof(c), fptr) != NULL) {
+    //if the program read to the end of header
+    //then, read the data region and print it to the console (sig==1)
+
+    if (sig == 1)
+        fputs(c, stdout);
+
+    /* check whether this line is the end of header,
+    the new line in array c contains "end_header\n"*/
+    if ((sig==0) && strncmp(c, check, sizeof(check))==0)
+    {
+    //Yes. The end of header
+        sig = 1;
+    }			
+}
 
     fclose(fptr);
 
