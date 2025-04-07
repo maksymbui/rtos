@@ -32,8 +32,7 @@ int main(int argc, char** argv) {
     //if the program read to the end of header
     //then, read the data region and print it to the console (sig==1)
 
-    if (sig == 1)
-        fputs(c, stdout);
+    if (sig == 1) fputs(c, stdout);
 
     /* check whether this line is the end of header,
     the new line in array c contains "end_header\n"*/
