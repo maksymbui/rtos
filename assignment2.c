@@ -149,7 +149,7 @@ void* ThreadB(void *params) {
     }
     printf("Thread B reads from a pipe: %s", ch); 
     strncpy(sharedMemory, ch, SHARED_MEM_SIZE);
-    
+    printf("Thread B writes to shared memory: %s", sharedMemory);
     sem_post(&threadParams->sem_C);
     sem_post(&threadParams->sem_A);
   }
