@@ -33,53 +33,48 @@
 typedef struct ThreadParams {
   int pipeFile[2]; // [0] for read and [1] for write. use pipe for data transfer from thread A to thread B
   sem_t sem_A, sem_B, sem_C; // the semphore
-  char message[255];
+  char message[256];
   char inputFile[100]; // input file name
   char outputFile[100]; // output file name
 } ThreadParams;
 
 /* Global variables */
 int sum = 1;
-
 pthread_attr_t attr;
-
 int shm_fd;// use shared memory for data transfer from thread B to Thread C 
 
 /* --- Prototypes --- */
-
 /* Initializes data and utilities used in thread params */
 void initializeData(ThreadParams *params);
-
 /* This thread reads data from data.txt and writes each line to a pipe */
 void* ThreadA(void *params);
-
 /* This thread reads data from pipe used in ThreadA and writes it to a shared variable */
 void* ThreadB(void *params);
-
 /* This thread reads from shared variable and outputs non-header text to src.txt */
 void* ThreadC(void *params);
 
 /* --- Main Code --- */
 int main(int argc, char const *argv[]) {
-  
- pthread_t tid[3]; // three threads
- ThreadParams params;
-  
+  pthread_t tid[3]; // three threads
+  ThreadParams params;
+
+  pipe(params.pipeFile);
+  strcpy(params.inputFile, argv[1]); // Maksym
+
   // Initialization
   initializeData(&params);
-
   // Create Threads
   pthread_create(&(tid[0]), &attr, &ThreadA, (void*)(&params));
-
   //TODO: add your code
- 
-
+  pthread_create(&(tid[1]), &attr, &ThreadB, (void*)(&params));
+  pthread_create(&(tid[2]), &attr, &ThreadC, (void*)(&params));
   // Wait on threads to finish
   pthread_join(tid[0], NULL);
-  
-    
   //TODO: add your code
-
+  pipe(params.pipeFile);
+  strcpy(params.inputFile, argv[1]);
+  pthread_join(tid[1], NULL);
+  pthread_join(tid[2], NULL);
   return 0;
 }
 
@@ -89,36 +84,59 @@ void initializeData(ThreadParams *params) {
     perror("error for init threa A");
     exit(1);
   }
-if(sem_init(&(params->sem_B), 0, 0) != 0) { // Set up Sem for thread B
+  if(sem_init(&(params->sem_B), 0, 0) != 0) { // Set up Sem for thread B
     perror("error for init threa B");
     exit(1);
   }
   if(sem_init(&(params->sem_C), 0, 0) != 0) { // Set up Sem for thread C
     perror("error for init threa C");
     exit(1);
-  } 
-
+  }
 // Initialize thread attributes 
   pthread_attr_init(&attr);
   //TODO: add your code
-
   return;
 }
 
 void* ThreadA(void *params) {
   //TODO: add your code
-  
-printf("Thread A: sum = %d\n", sum);
+  ThreadParams* threadParams = (ThreadParams*)params;
+  FILE *fptr;
+  if ((fptr = fopen(threadParams->inputFile, "r")) == NULL) {
+    printf("Error! opening file");
+    // Program exits if file pointer returns NULL.
+    exit(1);
+  }
+  printf("Thread A opened file - %s\n",threadParams->inputFile);
+  printf("Thread A sends data to a pipe \n");
+  while(fgets(threadParams->message, sizeof(threadParams->message) , fptr) != NULL) {
+    write(threadParams->pipeFile[1],threadParams->message,strlen(threadParams->message) + 1);
+    sem_post(&threadParams->sem_B);   
+    sem_wait(&threadParams->sem_A);
+  }
+  fclose(fptr);
+  printf("\nThread A signals EOF \n");
+  strcpy(threadParams->message, "");
+  write(threadParams->pipeFile[1], threadParams->message, strlen(threadParams->message) + 1);
+  sem_post(&threadParams->sem_B);
+  return 0;
 }
 
 void* ThreadB(void *params) {
-  //TODO: add your code
-
-  printf("Thread B: sum = %d\n", sum);
+  char ch[256];
+  ThreadParams* threadParams = (ThreadParams*)params;
+  while (1){
+    sem_wait(&threadParams->sem_B);
+    int n = read(threadParams->pipeFile[0],ch,sizeof(ch));
+    if (n==1){
+      break;
+    }
+    printf("Thread B reads from a pipe: %s", ch);
+    sem_post(&threadParams->sem_A); //To change
+  }
+  return 0;
 }
 
-void* ThreadC(void *params) {
-  //TODO: add your code
-
- printf("Thread C: Final sum = %d\n", sum);
+void* ThreadC(void *params){
+  return 0;
 }
