@@ -95,6 +95,15 @@ void initializeData(ThreadParams *params) {
 // Initialize thread attributes 
   pthread_attr_init(&attr);
   //TODO: add your code
+  shm_fd = shm_open(SHARED_MEM_NAME, O_CREAT | O_RDWR, 0666);
+  if (shm_fd == -1) {
+    perror("shm_open fail");
+    exit(1);
+  }
+  if(ftruncate(shm_fd, SHARED_MEM_SIZE) == -1){
+    perror("ftruncate fail");
+    exit(1);
+  }
   return;
 }
 
@@ -125,15 +134,26 @@ void* ThreadA(void *params) {
 void* ThreadB(void *params) {
   char ch[256];
   ThreadParams* threadParams = (ThreadParams*)params;
+
+  char* sharedMemory = mmap(0, SHARED_MEM_SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
+  if (sharedMemory == MAP_FAILED) {
+    perror("mmap fail");
+    exit(1);
+  }
+
   while (1){
     sem_wait(&threadParams->sem_B);
     int n = read(threadParams->pipeFile[0],ch,sizeof(ch));
     if (n==1){
       break;
     }
-    printf("Thread B reads from a pipe: %s", ch);
-    sem_post(&threadParams->sem_A); //To change
+    printf("Thread B reads from a pipe: %s", ch); 
+    strncpy(sharedMemory, ch, SHARED_MEM_SIZE);
+    
+    sem_post(&threadParams->sem_C);
+    sem_post(&threadParams->sem_A);
   }
+
   return 0;
 }
 
