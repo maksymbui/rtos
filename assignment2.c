@@ -59,7 +59,8 @@ void* ThreadC(void *params);
 /* --- Main Code --- */
 int main(int argc, char const *argv[]) {
 
-  if (argc < 3) {
+  // If there are not 2 given arguments
+  if (argc != 2) {
     fprintf(stderr, "Usage: %s <input file> <output file>\n", argv[0]);
     return 1;
   }
@@ -79,12 +80,10 @@ int main(int argc, char const *argv[]) {
     perror("Failed to create thread A");
     return 1;
   }
-
   if (pthread_create(&(tid[1]), &attr, &ThreadB, (void*)(&params)) != 0) {
     perror("Failed to create thread B");
     return 1;
   }
-
   if (pthread_create(&(tid[2]), &attr, &ThreadC, (void*)(&params)) != 0) {
     perror("Failed to create thread C");
     return 1;
