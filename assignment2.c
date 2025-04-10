@@ -31,15 +31,9 @@
 
 
 
-
-
-
-
-
 /* to be used for your memory allocation, write/read. man mmsp */
 #define SHARED_MEM_NAME "/my_shared_memory"
 #define SHARED_MEM_SIZE 1024
-
 
 
 
@@ -54,12 +48,10 @@ char outputFile[100]; // output file name
 
 
 
-
 /* Global variables */
 int sum = 1;
 pthread_attr_t attr;
 int shm_fd;// use shared memory for data transfer from thread B to Thread C
-
 
 
 
@@ -75,46 +67,28 @@ void* ThreadC(void *params);
 
 
 
-
 /* --- Main Code --- */
 int main(int argc, char const *argv[]) {
 pthread_t tid[3]; // three threads
 ThreadParams params;
-
-
 pipe(params.pipeFile);
 strcpy(params.inputFile, argv[1]); // Maksym
 strcpy(params.outputFile, argv[2]); // output file
-
-
 // Initialization
 initializeData(&params);
 // Create Threads
 pthread_create(&(tid[0]), &attr, &ThreadA, (void*)(&params));
 pthread_create(&(tid[1]), &attr, &ThreadB, (void*)(&params));
 pthread_create(&(tid[2]), &attr, &ThreadC, (void*)(&params));
-
-
-
-
 // Wait on threads to finish
 pthread_join(tid[0], NULL);
 pthread_join(tid[1], NULL);
 pthread_join(tid[2], NULL);
-
-
-
-
 //clean up
 close(shm_fd);
 shm_unlink(SHARED_MEM_NAME);
-
-
-
-
 return 0;
 }
-
 
 
 
@@ -139,18 +113,13 @@ shm_fd = shm_open(SHARED_MEM_NAME, O_CREAT | O_RDWR, 0666);
 if (shm_fd == -1) {
  perror("shm_open fail");
  exit(1);
-} else {
- printf("Shared memory opened");
-}
+} 
 if(ftruncate(shm_fd, SHARED_MEM_SIZE) == -1){
  perror("ftruncate fail");
  exit(1);
-} else {
- printf("Shared memory ++");
-}
+} 
 return;
 }
-
 
 
 
@@ -163,15 +132,12 @@ if ((fptr = fopen(threadParams->inputFile, "r")) == NULL) {
   // Program exits if file pointer returns NULL.
   exit(1);
 }
- printf("Thread A opened file - %s\n",threadParams->inputFile);
  while(fgets(threadParams->message, sizeof(threadParams->message) , fptr) != NULL) {
    write(threadParams->pipeFile[1],threadParams->message,strlen(threadParams->message) + 1);
-   printf("Thread A sends data to a pipe \n%s", threadParams->message);
    sem_post(&threadParams->sem_B); 
    sem_wait(&threadParams->sem_A);
  }
 fclose(fptr);
-printf("\nThread A signals EOF \n");
 strcpy(threadParams->message, "");
 write(threadParams->pipeFile[1], threadParams->message, strlen(threadParams->message) + 1);
 sem_post(&threadParams->sem_B);
@@ -180,13 +146,9 @@ return 0;
 
 
 
-
 void* ThreadB(void *params) {
 char ch[256];
   ThreadParams* threadParams = (ThreadParams*)params;
-
-
-
 
   // Map shared memory for writing
   char* sharedMemory = mmap(0, SHARED_MEM_SIZE, PROT_WRITE, MAP_SHARED, shm_fd, 0);
@@ -195,40 +157,23 @@ char ch[256];
       exit(1);
   }
 
-
   while (1) {
       sem_wait(&threadParams->sem_B);  // Wait for Thread A to post (i.e., data in the pipe)
       int n = read(threadParams->pipeFile[0], ch, sizeof(ch));
       if (n == 1) {  // If only one byte is read, it indicates EOF
-         printf("Thread B received EOF from the pipe\n");
          break;  // Exit if EOF is detected
       }
-
-
-      // debugging
-      printf("Thread B reads from a pipe: %s", ch);
-
-
       // Copy data into shared memory
       strncpy(sharedMemory, ch, SHARED_MEM_SIZE);
-
-
-      // debugging
-      printf("Thread B writes to shared memory: %s", sharedMemory);
-
-
       // Post to Thread C to signal that there is new data in shared memory
       sem_post(&threadParams->sem_C);
   }
 
-
   strcpy(sharedMemory, "");
   sem_post(&threadParams->sem_C);
 
-
   return 0;
 }
-
 
 
 
@@ -237,13 +182,11 @@ ThreadParams* threadParams = (ThreadParams*)params;
   FILE *fptr;
   int startWriting = 0;
 
-
   // Open the output file for writing
   if ((fptr = fopen(threadParams->outputFile, "w")) == NULL) {
       perror("Error opening output file");
       exit(1);
   }
-
 
   // Map shared memory for reading
   char* sharedMemory = mmap(0, SHARED_MEM_SIZE, PROT_READ, MAP_SHARED, shm_fd, 0);
@@ -253,28 +196,22 @@ ThreadParams* threadParams = (ThreadParams*)params;
   }
   while (1) {
       sem_wait(&threadParams->sem_C);
-      printf("Thread C received data from shared memory\n");
       // Check if shared memory is empty
       if (strlen(sharedMemory) == 0) {
           break;
       }
+
       if (strncmp(sharedMemory, "end_header", strlen("end_header")) == 0){
          startWriting = 1;
       }
 
-
       if(startWriting && strncmp(sharedMemory, "end_header", strlen("end_header")) != 0) {
        fputs(sharedMemory, fptr);
-         // debugging
-       fputs(sharedMemory, stdout);
       }
       sem_post(&threadParams->sem_A);
+      fputs(sharedMemory, stdout);
   }
-
-
-  printf("Thread C finished writing to %s\n", threadParams->outputFile);
-
-
+  fputc("\n", stdout);
   fclose(fptr);
   return 0;
 }
