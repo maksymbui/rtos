@@ -43,7 +43,6 @@ typedef struct ThreadParams {
 } ThreadParams;
 
 /* Global variables */
-int sum = 1;
 pthread_attr_t attr;
 int shm_fd;// use shared memory for data transfer from thread B to Thread C
 
