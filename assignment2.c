@@ -59,8 +59,8 @@ void* ThreadC(void *params);
 /* --- Main Code --- */
 int main(int argc, char const *argv[]) {
 
-  // If there are not 2 given arguments
-  if (argc != 2) {
+  // If number of arguments is not 2 (not including file name)
+  if (argc != 3) {
     fprintf(stderr, "Usage: %s <input file> <output file>\n", argv[0]);
     return 1;
   }
