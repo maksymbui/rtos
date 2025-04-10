@@ -58,6 +58,12 @@ void* ThreadC(void *params);
 
 /* --- Main Code --- */
 int main(int argc, char const *argv[]) {
+
+  if (argc < 3) {
+    fprintf(stderr, "Usage: %s <input file> <output file>\n", argv[0]);
+    return 1;
+  }
+
   pthread_t tid[3]; // Three threads
   ThreadParams params;
   pipe(params.pipeFile);
@@ -69,14 +75,36 @@ int main(int argc, char const *argv[]) {
   initializeData(&params);
 
   // Create Threads
-  pthread_create(&(tid[0]), &attr, &ThreadA, (void*)(&params));
-  pthread_create(&(tid[1]), &attr, &ThreadB, (void*)(&params));
-  pthread_create(&(tid[2]), &attr, &ThreadC, (void*)(&params));
+  if (pthread_create(&(tid[0]), &attr, &ThreadA, (void*)(&params)) != 0) {
+    perror("Failed to create thread A");
+    return 1;
+  }
+
+  if (pthread_create(&(tid[1]), &attr, &ThreadB, (void*)(&params)) != 0) {
+    perror("Failed to create thread B");
+    return 1;
+  }
+
+  if (pthread_create(&(tid[2]), &attr, &ThreadC, (void*)(&params)) != 0) {
+    perror("Failed to create thread C");
+    return 1;
+  }
 
   // Wait on threads to finish
-  pthread_join(tid[0], NULL);
-  pthread_join(tid[1], NULL);
-  pthread_join(tid[2], NULL);
+  if (pthread_join(tid[0], NULL) != 0) {
+    perror("Failed to join thread A");
+    return 1;
+  }
+
+  if (pthread_join(tid[1], NULL) != 0) {
+    perror("Failed to join thread B");
+    return 1;
+  }
+
+  if (pthread_join(tid[2], NULL) != 0) {
+    perror("Failed to join thread C");
+    return 1;
+  }
   
   // Clean up
   close(shm_fd);
