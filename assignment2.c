@@ -103,7 +103,7 @@ int main(int argc, char const *argv[]) {
     return 1;
   }
 
-  printf("Please view the result in %s\n",params.outputFile);
+  printf("Please view the result in \"%s\"\n",params.outputFile);
   
   // Clean up
   close(shm_fd);
@@ -155,8 +155,9 @@ void* ThreadA(void *params) {
 
   // Loop for writting lines into a pipe one by one
   while(fgets(threadParams->message, sizeof(threadParams->message) , fptr) != NULL) {
+    printf("Thread A: gets a line from input file \"%s\"\n", threadParams->inputFile);
     write(threadParams->pipeFile[1],threadParams->message,strlen(threadParams->message) + 1);
-    printf("Thread A: %s",threadParams->message);
+    printf("Thread A: wrote line to a pipe %s",threadParams->message);
     if (threadParams->message[strlen(threadParams->message)-1] != '\n') {
       printf("\n"); // manually print newline on the last line
     }
@@ -169,6 +170,7 @@ void* ThreadA(void *params) {
   write(threadParams->pipeFile[1], threadParams->message, strlen(threadParams->message)+1);
   sem_post(&threadParams->sem_B);  // Notify Thread B
   printf("Finished Thread A\n");
+  fclose(fptr);
   return 0;
 }
 
@@ -193,13 +195,15 @@ void* ThreadB(void *params) {
       sem_post(&threadParams->sem_C);
       break;
     }
-    printf("Thread B: %s",ch);
+    printf("Thread B: read from pipe %s",ch);
+
+    // Copy data into shared memory
+    strncpy(sharedMemory, ch, SHARED_MEM_SIZE);
+    printf("Thread B: copied to sharedMemory %s",sharedMemory);
+    // Post to Thread C to signal that there is new data in shared memory
     if (ch[strlen(ch)-1] != '\n') {
       printf("\n"); // manually print newline on the last line
     }
-    // Copy data into shared memory
-    strncpy(sharedMemory, ch, SHARED_MEM_SIZE);
-    // Post to Thread C to signal that there is new data in shared memory
     sem_post(&threadParams->sem_C);
   }
   printf("Finished Thread B\n");
@@ -236,23 +240,23 @@ ThreadParams* threadParams = (ThreadParams*)params;
       exit(1);
     }
 
-    printf("Thread C: %s",sharedMemory);
+    printf("Thread C: analyzing from shared memory  %s",sharedMemory);
     if (sharedMemory[strlen(sharedMemory)-1] != '\n') {
       printf("\n"); // manually print newline on the last line
-      printf("Reached last line of the input file\n");
+      printf("Thread C: Reached last line of the input file\n");
     }
     
     // Start writing lines to output file after reaching end of header
     if (strncmp(sharedMemory, "end_header", strlen("end_header")) == 0){
-      printf("Reached the end of header\n");
+      printf("Thread C: Reached the end of header\n");
       startWriting = 1;
     }
 
     if(startWriting && strncmp(sharedMemory, "end_header", strlen("end_header")) != 0) {
       fputs(sharedMemory, fptr);
-      printf("Current line is a part of content area. Writing to output file\n");
+      printf("Thread C: Current line is a part of content area. Writing to output file\n");
     } else {
-      printf("Current line is a part of header area. Skipping\n");
+      printf("Thread C: Current line is a part of header area. Skipping\n");
     }
 
     printf("-------------------------------\n");
