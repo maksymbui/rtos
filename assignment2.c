@@ -25,9 +25,6 @@
 #include  <semaphore.h>
 #include  <sys/time.h>
 #include  <sys/mman.h>
-#include  <fcntl.h>
-#include  <sys/types.h>
-#include  <sys/stat.h>
 
 /* to be used for your memory allocation, write/read. man mmsp */
 #define SHARED_MEM_NAME "/my_shared_memory"
@@ -58,7 +55,8 @@ void* ThreadC(void *params);
 
 /* --- Main Code --- */
 int main(int argc, char const *argv[]) {
-
+  printf("START OF PROGRAMM\n");
+  printf("-------------------------------\n");
   // If number of arguments is not 2 (not including file name)
   if (argc != 3) {
     fprintf(stderr, "Usage: %s <input file> <output file>\n", argv[0]);
@@ -104,27 +102,30 @@ int main(int argc, char const *argv[]) {
     perror("Failed to join thread C");
     return 1;
   }
+
+  printf("Please view the result in %s\n",params.outputFile);
   
   // Clean up
   close(shm_fd);
   shm_unlink(SHARED_MEM_NAME);
   close(params.pipeFile[0]);
   close(params.pipeFile[1]);
+  printf("END OF PROGRAMM\n");
   return 0;
 }
 
 void initializeData(ThreadParams *params) {
   // Initialize Sempahores
   if(sem_init(&(params->sem_A), 0, 0) != 0) { // Set up Sem for thread A
-    perror("error for init threa A");
+    perror("error for init thread A");
     exit(1);
   }
   if(sem_init(&(params->sem_B), 0, 0) != 0) { // Set up Sem for thread B
-    perror("error for init threa B");
+    perror("error for init thread B");
     exit(1);
   }
   if(sem_init(&(params->sem_C), 0, 0) != 0) { // Set up Sem for thread C
-    perror("error for init threa C");
+    perror("error for init thread C");
     exit(1);
   }
   // Initialize thread attributes
@@ -155,16 +156,19 @@ void* ThreadA(void *params) {
   // Loop for writting lines into a pipe one by one
   while(fgets(threadParams->message, sizeof(threadParams->message) , fptr) != NULL) {
     write(threadParams->pipeFile[1],threadParams->message,strlen(threadParams->message) + 1);
+    printf("Thread A: %s",threadParams->message);
+    if (threadParams->message[strlen(threadParams->message)-1] != '\n') {
+      printf("\n"); // manually print newline on the last line
+    }
     sem_post(&threadParams->sem_B); 
     sem_wait(&threadParams->sem_A);
   }
 
-  // Exit program if no more lines left in the input file
-  if (fgets(threadParams->message, sizeof(threadParams->message), fptr) == NULL){
-    exit(1);
-  }
-
-  fclose(fptr);
+  // After reading all lines
+  strcpy(threadParams->message, "__EOF__");
+  write(threadParams->pipeFile[1], threadParams->message, strlen(threadParams->message)+1);
+  sem_post(&threadParams->sem_B);  // Notify Thread B
+  printf("Finished Thread A\n");
   return 0;
 }
 
@@ -183,12 +187,22 @@ void* ThreadB(void *params) {
   while (1) {
     sem_wait(&threadParams->sem_B);  // Wait for Thread A to post (i.e., data in the pipe)
     read(threadParams->pipeFile[0], ch, sizeof(ch));
+    if (strcmp(ch, "__EOF__") == 0) {
+      // Send EOF to Thread C too
+      strncpy(sharedMemory, "__EOF__", SHARED_MEM_SIZE);
+      sem_post(&threadParams->sem_C);
+      break;
+    }
+    printf("Thread B: %s",ch);
+    if (ch[strlen(ch)-1] != '\n') {
+      printf("\n"); // manually print newline on the last line
+    }
     // Copy data into shared memory
     strncpy(sharedMemory, ch, SHARED_MEM_SIZE);
     // Post to Thread C to signal that there is new data in shared memory
     sem_post(&threadParams->sem_C);
   }
-
+  printf("Finished Thread B\n");
   return 0;
 }
 
@@ -213,24 +227,39 @@ ThreadParams* threadParams = (ThreadParams*)params;
   while (1) {
     sem_wait(&threadParams->sem_C);
 
+    if (strcmp(sharedMemory, "__EOF__") == 0) {
+      break; // Done
+    }
+    
     // Check if shared memory is empty
     if (strlen(sharedMemory) == 0) {
       exit(1);
     }
 
+    printf("Thread C: %s",sharedMemory);
+    if (sharedMemory[strlen(sharedMemory)-1] != '\n') {
+      printf("\n"); // manually print newline on the last line
+      printf("Reached last line of the input file\n");
+    }
+    
     // Start writing lines to output file after reaching end of header
     if (strncmp(sharedMemory, "end_header", strlen("end_header")) == 0){
+      printf("Reached the end of header\n");
       startWriting = 1;
     }
 
     if(startWriting && strncmp(sharedMemory, "end_header", strlen("end_header")) != 0) {
       fputs(sharedMemory, fptr);
-      fputs(sharedMemory, stdout);
+      printf("Current line is a part of content area. Writing to output file\n");
+    } else {
+      printf("Current line is a part of header area. Skipping\n");
     }
 
+    printf("-------------------------------\n");
     sem_post(&threadParams->sem_A);
   }
-
+  printf("Finished Thread C\n");
+  printf("-------------------------------\n");
   fclose(fptr);
   return 0;
 }
