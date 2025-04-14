@@ -199,11 +199,14 @@ void* ThreadB(void *params) {
 
     // Copy data into shared memory
     strncpy(sharedMemory, ch, SHARED_MEM_SIZE);
-    printf("Thread B: copied to sharedMemory %s",sharedMemory);
     // Post to Thread C to signal that there is new data in shared memory
-    if (ch[strlen(ch)-1] != '\n') {
-      printf("\n"); // manually print newline on the last line
+    
+    if (ch[strlen(ch)-1] != '\n') { // manually print newlines if read line is last
+      printf("\nThread B: copied to sharedMemory %s\n",sharedMemory);
+    } else {
+      printf("Thread B: copied to sharedMemory %s",sharedMemory);
     }
+    
     sem_post(&threadParams->sem_C);
   }
   printf("Finished Thread B\n");
@@ -232,7 +235,7 @@ ThreadParams* threadParams = (ThreadParams*)params;
     sem_wait(&threadParams->sem_C);
 
     if (strcmp(sharedMemory, "__EOF__") == 0) {
-      break; // Done
+      break; // Stop loop if reached End of FILE
     }
     
     // Check if shared memory is empty
@@ -241,9 +244,8 @@ ThreadParams* threadParams = (ThreadParams*)params;
     }
 
     printf("Thread C: analyzing from shared memory  %s",sharedMemory);
-    if (sharedMemory[strlen(sharedMemory)-1] != '\n') {
-      printf("\n"); // manually print newline on the last line
-      printf("Thread C: Reached last line of the input file\n");
+    if (sharedMemory[strlen(sharedMemory)-1] != '\n') {      // manually print newlines if read line is last
+      printf("\nThread C: Reached last line of the input file\n");
     }
     
     // Start writing lines to output file after reaching end of header
