@@ -69,12 +69,12 @@ int main(int argc, char* argv[])
 	for(i = 0; i < frameSize; i++){
 		frame[i] = -1;
 	}
-	printf("Initializing an empty frame of given size: ");
-	printf("[");
+	printf("Initializing an empty frame. \t |");
+	printf("\tFrame: [");
 	for (frameIdx = 0; frameIdx < frameSize; frameIdx++){
 		if (frameIdx != 0) printf(", ");
 		if (frame[frameIdx] == -1){
-			printf(" _ ");
+			printf("_ ");
 		} else {
 			printf("Error initializing an empty frame");
 			return 1;
@@ -84,18 +84,19 @@ int main(int argc, char* argv[])
 
 	//Loop through the reference string values.
 	for(i = 0; i < REFERENCESTRINGLENGTH; i++){
-		printf("ReferenceString[%d] = %d | ",i,referenceString[i]);
 		for(frameIdx = 0; frameIdx < frameSize; frameIdx++){
 			if (referenceString[i] == frame[frameIdx]){
-				printf("Current char from reference String is already loaded [");
 				match = true;
 				break;
 			}
 		}
 		if (match){
+			printf("Page [%d] is loaded in frame \t | ", referenceString[i]);
+			printf("\tFrame: [");
 			match = false;
 		} else {
-			printf("Loading a new char into frame [");
+			printf("Page [%d] caused a page fault. \t | ", referenceString[i]);
+			printf("\tFrame: [");
 			pageFaults++;
 			frame[nextWritePosition] = referenceString[i];
 			if (nextWritePosition == frameSize - 1){
@@ -113,14 +114,14 @@ int main(int argc, char* argv[])
 				printf("%d ", frame[frameIdx]);
 			}
 		}
-		printf("] | Total Faults: %d\n", pageFaults);
+		printf("]\n");
 	}
 
 
 	signal(SIGINT, SignalHandler);
+	printf("Press Ctrl+C\n");
 	//Sit here until the ctrl+c signal is given by the user.
 	while(1){
-		printf("Waiting for user to press Ctrl+C\n");
 		sleep(1);
 	}
 
@@ -134,8 +135,6 @@ int main(int argc, char* argv[])
  */
 void SignalHandler(int signal)
 {
-
-//add your code
 	printf("\nTotal page faults: %d\n", pageFaults);
 	exit(0);
 }
