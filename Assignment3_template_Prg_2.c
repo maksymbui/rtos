@@ -33,10 +33,16 @@ void SignalHandler(int signal);
  */
 int main(int argc, char* argv[])
 {
+
+	if (argc != 2){
+		fprintf(stderr, "Usage: %s <size of frame>\n", argv[0]);
+		return 1;
+	}
+
 	//Register Ctrl+c(SIGINT) signal and call the signal handler for the function.
 	//add your code here
 	
-        int i;
+    int i;
 	// reference number
 	int REFERENCESTRINGLENGTH=24;
 	//Argument from the user on the frame size, such as 4 frames in the document
@@ -49,25 +55,72 @@ int main(int argc, char* argv[])
 	int nextWritePosition = 0;
 	//Boolean value for whether there is a match or not.
 	bool match = false;
-	//Current value of the reference string.
-	int currentValue;
+	// //Current value of the reference string.
+	// int currentValue;
+	//Current index of the frame string
+	int frameIdx;
+
+	if (frameSize <= 0 || frameSize > REFERENCESTRINGLENGTH){
+		fprintf(stderr, "Given frame should be in a range from 1 to 24");
+		return 1;
+	}
 
 	//Initialise the empty frame with -1 to simulate empty values.
-	for(i = 0; i < frameSize; i++)
-	{
+	for(i = 0; i < frameSize; i++){
 		frame[i] = -1;
 	}
+	printf("Initializing an empty frame of given size: ");
+	printf("[");
+	for (frameIdx = 0; frameIdx < frameSize; frameIdx++){
+		if (frameIdx != 0) printf(", ");
+		if (frame[frameIdx] == -1){
+			printf(" _ ");
+		} else {
+			printf("Error initializing an empty frame");
+			return 1;
+		}
+	}
+	printf("]\n");
 
 	//Loop through the reference string values.
-	for(i = 0; i < REFERENCESTRINGLENGTH; i++)
-	{
-		//add your code here
-		
+	for(i = 0; i < REFERENCESTRINGLENGTH; i++){
+		printf("ReferenceString[%d] = %d | ",i,referenceString[i]);
+		for(frameIdx = 0; frameIdx < frameSize; frameIdx++){
+			if (referenceString[i] == frame[frameIdx]){
+				printf("Current char from reference String is already loaded [");
+				match = true;
+				break;
+			}
+		}
+		if (match){
+			match = false;
+		} else {
+			printf("Loading a new char into frame [");
+			pageFaults++;
+			frame[nextWritePosition] = referenceString[i];
+			if (nextWritePosition == frameSize - 1){
+				nextWritePosition = 0;
+			}else{
+				nextWritePosition++;
+			}
+		}
+
+		for (frameIdx = 0; frameIdx < frameSize; frameIdx++){
+			if (frameIdx != 0) printf(", ");
+			if (frame[frameIdx] == -1){
+				printf("_ ");
+			} else {
+				printf("%d ", frame[frameIdx]);
+			}
+		}
+		printf("] | Total Faults: %d\n", pageFaults);
 	}
 
+
+	signal(SIGINT, SignalHandler);
 	//Sit here until the ctrl+c signal is given by the user.
-	while(1)
-	{
+	while(1){
+		printf("Waiting for user to press Ctrl+C\n");
 		sleep(1);
 	}
 
