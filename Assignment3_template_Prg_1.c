@@ -20,7 +20,6 @@ the assignment 3 requirement. Assignment 3
 #include <sys/stat.h>
 
 typedef struct RR_Params {
-//add your variables here
     int timeQuantum;
 } ThreadParams;
 
@@ -70,8 +69,9 @@ void *worker2(){
         perror("Error opening output file");
         exit(1);
     }
-    fprintf(fptr,"\nAverage wait time: %fs\n", values[0]);
-	fprintf(fptr,"\nAverage turnaround time: %fs\n", values[1]);
+    fprintf(fptr,"Average wait time: %fs\n", values[0]);
+	fprintf(fptr,"Average turnaround time: %fs\n", values[1]);
+    fclose(fptr);
     return NULL;
 }
 
